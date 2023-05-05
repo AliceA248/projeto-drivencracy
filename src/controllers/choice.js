@@ -4,10 +4,9 @@ import { ObjectId } from "mongodb";
 
 export async function sendChoice(req, res) {
   const { title, poolId } = req.body;
-  const choice = req.body;
+
   try {
     const poolObjectId = ObjectId(poolId);
-
     const foundPool = await db.collection("pools").findOne({ _id: poolObjectId });
 
     if (!foundPool) {
@@ -26,15 +25,14 @@ export async function sendChoice(req, res) {
         .send("O prazo para interação nessa enquete já acabou");
     }
 
-    const poolChoices = await db
-      .collection("choices")
-      .findOne({ title: title });
+    const poolChoices = await db.collection("choices").findOne({ title });
 
     if (poolChoices) {
       return res.status(409).send("Título inválido!");
     }
 
-    await db.collection("choices").insertOne({ ...choice, votes: 0 });
+    const newChoice = { title, votes: 0, poolId };
+    const result = await db.collection("choices").insertOne(newChoice);
 
     return res
       .status(201)
@@ -47,46 +45,53 @@ export async function sendChoice(req, res) {
   }
 }
 
+
 export async function addVote(req, res) {
   const choiceId = req.params.id;
 
   try {
+    // Verifica se a opção existe
     const choice = await db
       .collection("choices")
       .findOne({ _id: ObjectId(choiceId) });
     if (!choice) {
-      return res.status(404).send("Essa não é uma opção válida");
+      return res.status(404).send("Opção não encontrada");
     }
 
+    // Verifica se a enquete existe
     const poolId = choice.poolId;
-
-    const choicePool = await db
+    const pool = await db
       .collection("pools")
       .findOne({ _id: ObjectId(poolId) });
-
-    if (!choicePool) {
-      return res
-        .status(404)
-        .send("A enquete não foi encontrada. Tente novamente mais tarde");
+    if (!pool) {
+      return res.status(404).send("Enquete não encontrada");
     }
-    const expirationDate = choicePool.expireAt;
-    const currentDate = dayjs().format("YYYY-MM-D hh:mm");
 
+    // Verifica se o prazo para votação ainda está aberto
+    const expirationDate = pool.expireAt;
+    const currentDate = dayjs().format("YYYY-MM-D hh:mm");
     if (currentDate > expirationDate) {
       return res
         .status(403)
         .send("O prazo para votação nessa enquete já acabou");
     }
 
+    // Incrementa o número de votos da opção
     await db
       .collection("choices")
       .findOneAndUpdate({ _id: ObjectId(choiceId) }, { $inc: { votes: 1 } });
 
     return res
       .status(201)
-      .send(`Voto para "${choice.title}" enviado com sucesso`);
+      .send(`Voto para "${choice.title}" registrado com sucesso`);
   } catch (error) {
-    console.log(error);
-    return res.sendStatus(500);
+    console.error(error);
+
+    // Verifica o tipo do erro para retornar uma mensagem mais específica
+    if (error instanceof MongoError) {
+      return res.status(500).send("Erro ao acessar o banco de dados");
+    }
+
+    return res.status(500).send("Erro interno do servidor");
   }
 }

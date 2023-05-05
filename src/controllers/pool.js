@@ -2,29 +2,33 @@ import db from "../db.js";
 import dayjs from "dayjs";
 import { ObjectId } from "mongodb";
 
+
+
 export async function sendPool(req, res) {
   const { title, expireAt } = req.body;
   const pool = req.body;
 
   try {
-    const existingPool = await db.collection("pools").findOne({ title });
+    const existingPool = await db.collection("pools").findOne({ title, expireAt });
 
-    if (!!existingPool) {
+    if (existingPool) {
       return res
         .status(409)
-        .send("Já existe uma enquete com esse nome. Por favor, escolha um nome diferente.");
+        .send("Já existe uma enquete com o mesmo título e data de expiração. Por favor, escolha um título e/ou data diferente(s).");
     }
 
-    if (!expireAt) {
-      let currentTime = dayjs().add(30, "day").format("YYYY-MM-D hh:mm");
+    const defaultExpiration = dayjs().add(30, "day").format("YYYY-MM-DD hh:mm");
+    const expirationDate = expireAt || defaultExpiration;
 
-      const completedPool = { title, expireAt: currentTime };
-      await db.collection("pools").insertOne(completedPool);
-      return res.status(201).send(`Enquete "${title}" criada com sucesso!!`);
+    if (!dayjs(expirationDate).isValid() || dayjs(expirationDate).isBefore(dayjs())) {
+      return res
+        .status(422)
+        .send("A data de expiração informada é inválida ou anterior à data atual. Por favor, informe uma data válida e futura.");
     }
 
-    await db.collection("pools").insertOne(pool);
-    return res.status(201).send(`Enquete ${title} foi criada!`);
+    const completedPool = { title, expireAt: expirationDate };
+    await db.collection("pools").insertOne(completedPool);
+    return res.status(201).send(`Enquete "${title}" criada com sucesso!`);
   } catch (error) {
     console.log(error);
     return res.sendStatus(500);
@@ -32,12 +36,13 @@ export async function sendPool(req, res) {
 }
 
 export async function getPool(req, res) {
-  const allPools = await db.collection("pools").find().toArray();
-
   try {
+    const allPools = await db.collection("pools").find().toArray();
+
     if (allPools.length === 0) {
-      return res.status(204).send("Não há enquetes cadastradas no momento.");
+      return res.status(404).send("Não há enquetes cadastradas no momento.");
     }
+
     return res.status(200).send(allPools);
   } catch (error) {
     console.log(error);
@@ -45,80 +50,64 @@ export async function getPool(req, res) {
   }
 }
 
-export async function getPoolChoices(req, res) {
-  const poolId = req.params.id;
 
+export async function getPoolChoices(req, res) {
   try {
-    const poolChoices = await db
-      .collection("choices")
-      .find({ poolId: poolId })
-      .toArray();
+    const poolId = req.params.id;
+
+    const poolChoices = await db.collection("choices").find({ poolId }).toArray();
+
     if (poolChoices.length === 0) {
       return res.status(404).send("Não foi encontrada uma enquete correspondente ao ID fornecido!");
     }
 
     return res.status(200).send(poolChoices);
   } catch (error) {
-    console.log(error);
-    res.sendStatus(500);
+    console.error(error);
+    return res.sendStatus(500);
   }
 }
+
 
 export async function getPoolResults(req, res) {
   const poolId = req.params.id;
   try {
-    let choices = await db
+    const choices = await db
       .collection("choices")
       .find({ poolId: poolId })
       .toArray();
 
-    let votesNumber = 0;
-    let votesName = "";
-
-    for (let i = 0; i < choices.length; i++) {
-      let choiceVotes = choices[i].votes;
-
-      if (choiceVotes > votesNumber) {
-        votesNumber = choiceVotes;
-        votesName = choices[i].title;
-      }
+    if (choices.length === 0) {
+      return res.status(404).send("Não foi encontrada uma enquete correspondente ao ID fornecido!");
     }
 
-    const pollwithSameVotes = await db
-      .collection("choices")
-      .find({ votes: votesNumber })
-      .toArray();
-    let winningChoice = {};
-    if (pollwithSameVotes.length === 1) {
-      winningChoice = {
-        title: votesName,
-        votes: votesNumber,
-      };
+    const sortedChoices = choices.sort((a, b) => b.votes - a.votes);
+    const winningChoice = {
+      title: sortedChoices[0].title,
+      votes: sortedChoices[0].votes,
+    };
+
+    if (sortedChoices[1] && sortedChoices[1].votes === winningChoice.votes) {
+      winningChoice.title = [winningChoice.title, sortedChoices[1].title];
+      winningChoice.votes = [winningChoice.votes, sortedChoices[1].votes];
     }
 
-    if (pollwithSameVotes.length > 1 && pollwithSameVotes.length < 3) {
-      winningChoice = {
-        title: [pollwithSameVotes[0].title, pollwithSameVotes[1].title],
-        votes: [pollwithSameVotes[0].votes, pollwithSameVotes[1].votes],
-      };
-    }
-
-    if (pollwithSameVotes.length >= 3) {
-      return res
-        .status(207)
-        .send(
-          "Atualmente, existem mais de 2 opções com os mesmos resultados, aguarde análise"
-        );
+    if (sortedChoices.length > 2 && sortedChoices[2].votes === winningChoice.votes) {
+      return res.status(207).send("Existem mais de 2 opções com os mesmos resultados, aguarde análise");
     }
 
     const pool = await db
       .collection("pools")
       .findOne({ _id: ObjectId(poolId) });
-    const poolResults = { ...pool, winningChoice };
+
+    const poolResults = {
+      ...pool,
+      winningChoice,
+    };
 
     return res.status(200).send(poolResults);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return res.sendStatus(500);
   }
 }

@@ -1,4 +1,4 @@
-import poolSchema from "../schemas/schema.js";
+import {poolSchema, choiceSchema } from "../schemas/schema.js";
 
 export function validatePool(req, res, next) {
   const pool = req.body;
