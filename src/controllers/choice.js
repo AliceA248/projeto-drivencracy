@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import db from "../db.js";
+import db from "../data/db.js";
 import { ObjectId } from "mongodb";
 
 export async function sendChoice(req, res) {

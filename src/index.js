@@ -9,6 +9,8 @@ app.use(json());
 
 app.use(router);
 
-app.listen(process.env.PORT, () => {
-  console.log(`Now listening on ${process.env.PORT}`);
+const PORT = 5001 
+
+app.listen(PORT, () => {
+  console.log(`Now listening on ${PORT}`);
 });
