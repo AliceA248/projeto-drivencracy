@@ -53,15 +53,15 @@ export async function getPoll(req, res) {
 
 export async function getPollChoices(req, res) {
   try {
-    const poolId = req.params.id;
+    const pollId = req.params.id;
 
-    const poolChoices = await db.collection("choices").find({ poolId }).toArray();
+    const pollChoices = await db.collection("choices").find({ pollId }).toArray();
 
-    if (poolChoices.length === 0) {
+    if (pollChoices.length === 0) {
       return res.status(404).send("Não foi encontrada uma enquete correspondente ao ID fornecido!");
     }
 
-    return res.status(200).send(poolChoices);
+    return res.status(200).send(pollChoices);
   } catch (error) {
     console.error(error);
     return res.sendStatus(500);
@@ -70,11 +70,11 @@ export async function getPollChoices(req, res) {
 
 
 export async function getPollResults(req, res) {
-  const poolId = req.params.id;
+  const pollId = req.params.id;
   try {
     const choices = await db
       .collection("choices")
-      .find({ poolId: poolId })
+      .find({ pollId: pollId })
       .toArray();
 
     if (choices.length === 0) {
@@ -98,7 +98,7 @@ export async function getPollResults(req, res) {
 
     const poll = await db
       .collection("poll")
-      .findOne({ _id: new ObjectId(poolId) });
+      .findOne({ _id: new ObjectId(pollId) });
 
     const poolResults = {
       ...poll,
