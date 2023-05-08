@@ -98,7 +98,7 @@ export async function getPoolResults(req, res) {
 
     const pool = await db
       .collection("pools")
-      .findOne({ _id: ObjectId(poolId) });
+      .findOne({ _id: new ObjectId(poolId) });
 
     const poolResults = {
       ...pool,

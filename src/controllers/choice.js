@@ -4,12 +4,13 @@ import { ObjectId } from "mongodb";
 
 export async function sendChoice(req, res) {
   const { title, poolId } = req.body;
-
+  const choice = req.body;
   try {
-    const poolObjectId = ObjectId(poolId);
-    const foundPool = await db.collection("pools").findOne({ _id: poolObjectId });
+    const poolObjectId = new ObjectId(poolId);
 
-    if (!foundPool) {
+    const currentPool = await db.collection("pools").findOne({ _id: poolObjectId, });
+
+    if (!currentPool) {
       return res
         .status(404)
         .send(
@@ -17,27 +18,28 @@ export async function sendChoice(req, res) {
         );
     }
 
-    const expirationDate = foundPool.expireAt;
-    const currentDate = dayjs().format("YYYY-MM-D hh:mm");
-    if (currentDate > expirationDate) {
+    const poolExpiration = currentPool.expireAt;
+    const dateOfChoice = dayjs().format("YYYY-MM-D hh:mm");
+    if (dateOfChoice > poolExpiration) {
       return res
         .status(403)
         .send("O prazo para interação nessa enquete já acabou");
     }
 
-    const poolChoices = await db.collection("choices").findOne({ title });
+    const poolChoices = await db
+      .collection("choices")
+      .findOne({ title: title });
 
     if (poolChoices) {
       return res.status(409).send("Título inválido!");
     }
 
-    const newChoice = { title, votes: 0, poolId };
-    const result = await db.collection("choices").insertOne(newChoice);
+    await db.collection("choices").insertOne({ ...choice, votes: 0 });
 
     return res
       .status(201)
       .send(
-        `Opção "${title}" adicionada à enquete "${foundPool.title}" com sucesso!`
+        `Opção "${title}" adicionada à enquete "${currentPool.title}" com sucesso!`
       );
   } catch (error) {
     console.log(error);
@@ -45,53 +47,51 @@ export async function sendChoice(req, res) {
   }
 }
 
-
 export async function addVote(req, res) {
   const choiceId = req.params.id;
 
   try {
-    // Verifica se a opção existe
     const choice = await db
       .collection("choices")
-      .findOne({ _id: ObjectId(choiceId) });
+      .findOne({ _id: new ObjectId(choiceId) });
     if (!choice) {
-      return res.status(404).send("Opção não encontrada");
+      return res.status(404).send("Essa não é uma opção válida");
     }
 
-    // Verifica se a enquete existe
     const poolId = choice.poolId;
-    const pool = await db
+
+    const choicePool = await db
       .collection("pools")
-      .findOne({ _id: ObjectId(poolId) });
-    if (!pool) {
-      return res.status(404).send("Enquete não encontrada");
+      .findOne({ _id: new ObjectId(poolId) });
+
+    if (!choicePool) {
+      return res
+        .status(404)
+        .send("A enquete não foi encontrada. Tente novamente mais tarde");
     }
 
-    // Verifica se o prazo para votação ainda está aberto
-    const expirationDate = pool.expireAt;
-    const currentDate = dayjs().format("YYYY-MM-D hh:mm");
-    if (currentDate > expirationDate) {
+    const poolExpiration = dayjs(choicePool.expireAt);
+    const currentDate = dayjs();
+
+    if (currentDate.isAfter(poolExpiration)) {
       return res
         .status(403)
         .send("O prazo para votação nessa enquete já acabou");
     }
 
-    // Incrementa o número de votos da opção
-    await db
+    const updatedChoice = await db
       .collection("choices")
-      .findOneAndUpdate({ _id: ObjectId(choiceId) }, { $inc: { votes: 1 } });
+      .findOneAndUpdate(
+        { _id: new ObjectId(choiceId) },
+        { $inc: { votes: 1 } },
+        { returnOriginal: false }
+      );
 
     return res
       .status(201)
-      .send(`Voto para "${choice.title}" registrado com sucesso`);
+      .send(`Voto para "${updatedChoice.value.title}" enviado com sucesso`);
   } catch (error) {
-    console.error(error);
-
-    // Verifica o tipo do erro para retornar uma mensagem mais específica
-    if (error instanceof MongoError) {
-      return res.status(500).send("Erro ao acessar o banco de dados");
-    }
-
-    return res.status(500).send("Erro interno do servidor");
+    console.log(error);
+    return res.sendStatus(500);
   }
 }
