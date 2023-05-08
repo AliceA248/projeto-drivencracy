@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { sendChoice, addVote } from "../controllers/choice.js";
-import { validatePool, validateChoice } from '../middleware/validate.js';
+import { validatePoll, validateChoice } from '../middleware/validate.js';
 import {
-  sendPool,
-  getPool,
-  getPoolChoices,
-  getPoolResults,
-} from "../controllers/pool.js";
+  sendPoll,
+  getPoll,
+  getPollChoices,
+  getPollResults,
+} from "../controllers/poll.js";
 
 
 
@@ -20,26 +20,26 @@ choiceRouter.post("/choice/:id/vote", addVote);
 // poll
 
 
-const poolRouter = Router();
+const pollRouter = Router();
 
-poolRouter.post("/pool", validatePool, sendPool);
+pollRouter.post("/poll", validatePoll, sendPoll);
 
-poolRouter.get("/pool", getPool);
+pollRouter.get("/poll", getPoll);
 
-poolRouter.get("/pool/:id/choice/", getPoolChoices);
+pollRouter.get("/poll/:id/choice/", getPollChoices);
 
-poolRouter.get("/pool/:id/result", getPoolResults);
+pollRouter.get("/poll/:id/result", getPollResults);
 
 
 // routes
 
 const router = Router();
 
-router.use(poolRouter);
+router.use(pollRouter);
 router.use(choiceRouter);
 
 export default router;
 
 
-export { poolRouter, choiceRouter, router };
+export { pollRouter, choiceRouter, router };
 
