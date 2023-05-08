@@ -9,7 +9,7 @@ app.use(json());
 
 app.use(router);
 
-const PORT = 5009
+const PORT = 5000
 
 app.listen(PORT, () => {
   console.log(`Now listening on ${PORT}`);
