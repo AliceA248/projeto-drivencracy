@@ -3,14 +3,14 @@ import db from "../data/db.js";
 import { ObjectId } from "mongodb";
 
 export async function sendChoice(req, res) {
-  const { title, pollId } = req.body;
+  const { title, poolId } = req.body;
   const choice = req.body;
   try {
-    const pollObjectId = new ObjectId(pollId);
+    const poolObjectId = new ObjectId(poolId);
 
-    const currentPoll = await db.collection("polls").findOne({ _id: pollObjectId, });
+    const currentPool = await db.collection("pools").findOne({ _id: poolObjectId, });
 
-    if (!currentPoll) {
+    if (!currentPool) {
       return res
         .status(404)
         .send(
@@ -18,19 +18,19 @@ export async function sendChoice(req, res) {
         );
     }
 
-    const pollExpiration = currentPoll.expireAt;
+    const poolExpiration = currentPool.expireAt;
     const dateOfChoice = dayjs().format("YYYY-MM-D hh:mm");
-    if (dateOfChoice > pollExpiration) {
+    if (dateOfChoice > poolExpiration) {
       return res
         .status(403)
         .send("O prazo para interação nessa enquete já acabou");
     }
 
-    const pollChoices = await db
+    const poolChoices = await db
       .collection("choices")
       .findOne({ title: title });
 
-    if (pollChoices) {
+    if (poolChoices) {
       return res.status(409).send("Título inválido!");
     }
 
@@ -39,7 +39,7 @@ export async function sendChoice(req, res) {
     return res
       .status(201)
       .send(
-        `Opção "${title}" adicionada à enquete "${currentPoll.title}" com sucesso!`
+        `Opção "${title}" adicionada à enquete "${currentPool.title}" com sucesso!`
       );
   } catch (error) {
     console.log(error);
@@ -58,22 +58,22 @@ export async function addVote(req, res) {
       return res.status(404).send("Essa não é uma opção válida");
     }
 
-    const pollId = choice.pollId;
+    const poolId = choice.poolId;
 
-    const choicePoll = await db
-      .collection("polls")
-      .findOne({ _id: new ObjectId(pollId) });
+    const choicePool = await db
+      .collection("pools")
+      .findOne({ _id: new ObjectId(poolId) });
 
-    if (!choicePoll) {
+    if (!choicePool) {
       return res
         .status(404)
         .send("A enquete não foi encontrada. Tente novamente mais tarde");
     }
 
-    const pollExpiration = dayjs(choicePoll.expireAt);
+    const poolExpiration = dayjs(choicePool.expireAt);
     const currentDate = dayjs();
 
-    if (currentDate.isAfter(pollExpiration)) {
+    if (currentDate.isAfter(poolExpiration)) {
       return res
         .status(403)
         .send("O prazo para votação nessa enquete já acabou");

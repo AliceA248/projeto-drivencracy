@@ -1,9 +1,9 @@
-import {pollSchema, choiceSchema } from "../schemas/schema.js";
+import {poolSchema, choiceSchema } from "../schemas/schema.js";
 
-export function validatePoll(req, res, next) {
-  const poll = req.body;
+export function validatePool(req, res, next) {
+  const pool = req.body;
 
-  const validation = pollSchema.validate(poll);
+  const validation = poolSchema.validate(pool);
 
   if (validation.error) {
     const errorMessage = validation.error.details[0].message;

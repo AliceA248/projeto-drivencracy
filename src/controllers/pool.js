@@ -4,12 +4,12 @@ import { ObjectId } from "mongodb";
 
 
 
-export async function sendPoll(req, res) {
+export async function sendPool(req, res) {
   const { title, expireAt } = req.body;
-  const poll = req.body;
+  const pool = req.body;
 
   try {
-    const existingPool = await db.collection("poll").findOne({ title, expireAt });
+    const existingPool = await db.collection("pools").findOne({ title, expireAt });
 
     if (existingPool) {
       return res
@@ -26,8 +26,8 @@ export async function sendPoll(req, res) {
         .send("A data de expiração informada é inválida ou anterior à data atual. Por favor, informe uma data válida e futura.");
     }
 
-    const completedPoll = { title, expireAt: expirationDate };
-    await db.collection("poll").insertOne(completedPoll);
+    const completedPool = { title, expireAt: expirationDate };
+    await db.collection("pools").insertOne(completedPool);
     return res.status(201).send(`Enquete "${title}" criada com sucesso!`);
   } catch (error) {
     console.log(error);
@@ -35,15 +35,15 @@ export async function sendPoll(req, res) {
   }
 }
 
-export async function getPoll(req, res) {
+export async function getPool(req, res) {
   try {
-    const allPolls = await db.collection("poll").find().toArray();
+    const allPools = await db.collection("pools").find().toArray();
 
-    if (allPolls.length === 0) {
+    if (allPools.length === 0) {
       return res.status(404).send("Não há enquetes cadastradas no momento.");
     }
 
-    return res.status(200).send(allPolls);
+    return res.status(200).send(allPools);
   } catch (error) {
     console.log(error);
     return res.sendStatus(500);
@@ -51,17 +51,17 @@ export async function getPoll(req, res) {
 }
 
 
-export async function getPollChoices(req, res) {
+export async function getPoolChoices(req, res) {
   try {
-    const pollId = req.params.id;
+    const poolId = req.params.id;
 
-    const pollChoices = await db.collection("choices").find({ pollId }).toArray();
+    const poolChoices = await db.collection("choices").find({ poolId }).toArray();
 
-    if (pollChoices.length === 0) {
+    if (poolChoices.length === 0) {
       return res.status(404).send("Não foi encontrada uma enquete correspondente ao ID fornecido!");
     }
 
-    return res.status(200).send(pollChoices);
+    return res.status(200).send(poolChoices);
   } catch (error) {
     console.error(error);
     return res.sendStatus(500);
@@ -69,12 +69,12 @@ export async function getPollChoices(req, res) {
 }
 
 
-export async function getPollResults(req, res) {
-  const pollId = req.params.id;
+export async function getPoolResults(req, res) {
+  const poolId = req.params.id;
   try {
     const choices = await db
       .collection("choices")
-      .find({ pollId: pollId })
+      .find({ poolId: poolId })
       .toArray();
 
     if (choices.length === 0) {
@@ -96,12 +96,12 @@ export async function getPollResults(req, res) {
       return res.status(207).send("Existem mais de 2 opções com os mesmos resultados, aguarde análise");
     }
 
-    const poll = await db
-      .collection("poll")
-      .findOne({ _id: new ObjectId(pollId) });
+    const pool = await db
+      .collection("pools")
+      .findOne({ _id: new ObjectId(poolId) });
 
     const poolResults = {
-      ...poll,
+      ...pool,
       winningChoice,
     };
 
